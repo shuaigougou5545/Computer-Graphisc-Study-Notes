@@ -1,5 +1,7 @@
 # 采样
 
+PDF概率密度函数、CDF累积密度函数等基础概念略～
+
 #### （1）重要性采样
 
 重要性采样的目标：通过改变采样分布来减少方差，从而提高估计的精度
@@ -75,8 +77,6 @@
 
 逆变换采样：是一种**为任意概率分布生成随机样本**的技术 → 将均匀分布的随机数u映射到目标分布f(x)上，其中映射函数为累积分布函数(cdf)的反函数F<sup>-1</sup>。也就是说，新构造的随机变量X可以表示为F<sup>-1</sup>(u)，认为这个新变量X的分布与目标分布一致
 
-> 相关博客：https://zhuanlan.zhihu.com/p/622443806
-
 - 证明过程：
 
   我们假设变量u在[0,1]上均匀线性随机分布，通过映射函数F<sup>-1</sup>得到新的变量X，即
@@ -133,34 +133,297 @@
 
 #### （5）半球均匀采样
 
-> 参考链接：https://www.bogotobogo.com/Algorithms/uniform_distribution_sphere.php
+> 参考链接 - 半球均匀采样：https://www.bogotobogo.com/Algorithms/uniform_distribution_sphere.php
+>
+> 参考博客 - 逆变换采样+半球采样：https://zhuanlan.zhihu.com/p/622443806
 
-半球均匀采样
+本节将详细讨论如何**在圆面(2D)和球面(3D)上采样**，并对常见的采样思路进行分析
 
-- 步骤
+**2D圆面采样**
 
-  对θ、𝞿分别取线性随机数，各采样点权重为1/(2𝜋)，即1/总表面积
+- [**简单圆面采样**]圆面上坐标可以用极坐标系表示，即r、θ，一种简单的思路是分别对其取随机小数，使r∈[0, R], θ∈[0, 2𝜋]
 
-- 特征
+  ```python
+  def simple_circle_sampling(r, num_samples):
+      # 简单圆面采样
+      x_list = []
+      y_list = []
+      for _ in range(num_samples):
+          random_theta = random.random() * math.pi * 2 # U(0,1) -> [0,2𝜋]
+          random_r = random.random() * r # U(0,1) -> [0,r]
+          x = math.cos(random_theta) * random_r
+          y = math.sin(random_theta) * random_r
+          x_list.append(x)
+          y_list.append(y)
+      return x_list, y_list
+  ```
 
-  采样点在半球上是均匀分布的，点与点之间的距离也是最大且均匀的
+  可视化采样点如图，可以发现采样点集中在圆心区域：
 
-- 推导
+  <img src="https://cdn.jsdelivr.net/gh/shuaigougou5545/blog-image/img/202405211135739.png" alt="简单圆面采样" style="zoom:20%;" />
 
-  采样点在半球上是均匀分布的，即采样点在其表面积上或者单位立体角上均匀分布，dω=sinθdθd𝜑
-
-  如果尝试只使用线性均匀的θ对采样点进行描述，那么大部分采样点会集中在球面的极点处，两种理解：(1)dω中存在sinθ (2)θ描述的是纬度，不同的θ角对应的纬圈长度不同，在赤道处纬圈最长，在极点处最短，如果对)θ进行线性分布，由于长度的差异，极点附近的点密度远高于赤道附近的点密度，这就导致了采样点在极点附近聚集
-
-  阿基米德定理表明，如果在某一高度h处切割球体，切割部分的表面积等于将球体包围在一个圆柱体中时，对应投影区域在圆柱体上的侧面积 → 这暗示着：我们在圆柱体上生成随机点[-1,1]×[0,2𝜋]，再逆投影回单位球
-
-  <img src="https://cdn.jsdelivr.net/gh/shuaigougou5545/blog-image/img/202405201316861.png" alt="CircumscribeCylinder" style="zoom:70%;" />
+  为什么采样点集中在圆心区域，而不是均匀分布？<font color='green'>想要"**均匀**"分布，面积微元dA在圆的不同位置就得保持一致</font>。我们知道dA=rdrdθ，面积微元受到半径r的影响，因此在离圆心较远的位置面积微元较大，点与点之间的距离就更大，显得采样点更稀疏。
   $$
-  S_1=S_2=2\pi Rh
+  \text{d}A=\text{弧长}\times \text{半径}=(r\cdot \text{d}\theta) \cdot \text{d}r
   $$
-  TODO：联合概率密度、边缘概率密度
+  这种简单圆面采样不能保证均匀分布，想要均匀分布，需要使用一个在中心更加稀疏外围更加密集的采样函数，需要运用到逆变换采样推导
 
-  
+- [**均匀圆面采样**] 均匀分布的核心是面积，我们可以从面积入手。既然假设了是均匀采样，那么PDF已知，为1 / 总圆面面积 [接下来的步骤-逆变换采样]：
+  $$
+  p(A)=\frac{1}{\text{圆面总面积}}=\frac{1}{\pi R^2}
+  \\ \therefore\int_{circle} \frac{1}{\pi R^2} \text{d}A=1
+  $$
+  将dA转换到极坐标系drdθ：
+  $$
+  \int_{circle} \frac{1}{\pi R^2} \text{d}A=1
+  \\ \therefore\int_{circle} \frac{r}{\pi R^2} \text{d}r\text{d}\theta=1
+  \\ \therefore p(r, \theta)=\frac{r}{\pi R^2}
+  $$
+  得到联合概率密度p(r,θ)，因此可以计算边缘概率密度[联合概率密度→边缘概率密度 - 在另一个变量上求积分]
+  $$
+  p_r(r,\theta)=\int_0^{2\pi}\frac{r}{\pi R^2}\text{d}\theta=\frac{2r}{R^2}
+  \\ p_\theta(r,\theta)=\int_0^{R}\frac{r}{\pi R^2}\text{d}r=\frac{1}{2\pi}
+  $$
+  求边缘累积分布CDF：
+  $$
+  F_r(r,\theta)=\int_0^r \frac{2r}{R^2}\text{d}r=\frac{r^2}{R^2}
+  \\ F_\theta(r,\theta)= \int_0^\theta \frac{1}{2\pi}\text{d}\theta=\frac{\theta}{2\pi}
+  $$
+  最后求反函数[求反函数的方法 - 交换x与y]：
+  $$
+  F_r^{-1}(r,\theta)= R\sqrt{r}
+  \\ F_\theta^{-1}(r,\theta)= 2\pi\theta
+  $$
+  根据逆变换采样的原理，为r和θ分别生成随机数U(0,1)，再经过F<sup>-1</sup>映射到对应变量
+
+  ```python
+  def uniform_circle_sampling(R, num_samples):
+      #均匀圆面采样
+      x_list = []
+      y_list = []
+      for _ in range(num_samples):
+          random_theta = random.random() * math.pi * 2 # 2𝜋θ
+          random_r = math.sqrt(random.random()) * R # R·sqrt{r}
+          x = math.cos(random_theta) * random_r
+          y = math.sin(random_theta) * random_r
+          x_list.append(x)
+          y_list.append(y)
+      return x_list, y_list
+  ```
+
+  可视化采样点如图，可以发现采样点均匀分布在圆面上：
+
+  <img src="https://cdn.jsdelivr.net/gh/shuaigougou5545/blog-image/img/202405211218611.png" alt="均匀球面采样" style="zoom:20%;" />
+
+**3D球面采样**
+
+- [简单球面采样]：球面上坐标可以用俯仰角和方位角表示，即θ、𝜑，一种简单的思路是分别对其取随机小数，使θ∈[0, 𝜋], 𝜑∈[0, 2𝜋]
+
+  ```python
+  def simple_sphere_sampling(R, num_samples):
+      # 简单球面采样
+      x_list = []
+      y_list = []
+      z_list = []
+      for _ in range(num_samples):
+          random_theta = random.random() * math.pi # U(0,1) -> [0,𝜋]
+          random_phi = random.random() * math.pi * 2 # U(0,1) -> [0,2𝜋]
+          x = math.sin(random_theta) * math.cos(random_phi) * R
+          y = math.sin(random_theta) * math.sin(random_phi) * R
+          z = math.cos(random_theta) * R
+          x_list.append(x)
+          y_list.append(y)
+          z_list.append(z)
+      return x_list, y_list, z_list
+  ```
+
+  可视化采样点如图，可以发现采样点集中在极点区域：
+
+  <img src="https://cdn.jsdelivr.net/gh/shuaigougou5545/blog-image/img/202405211235547.png" alt="简单球面采样" style="zoom:20%;" />
+
+  不均匀的原因很清楚，通过单位立体角分析：
+  $$
+  \text{d}\omega=\sin\theta\ \text{d}\theta\ \text{d}\phi
+  $$
+  极点处sinθ最小，故采样点之间拉不开差距
+
+- [**均匀球面采样**] 均匀分布的核心是面积，我们可以从面积入手，球面中与面积相关的概念是单位立体角[单位立体角的定义即面积微元除以半径的平方]。既然假设了是均匀采样，那么PDF已知，为1 / 总立体角 [接下来的步骤-逆变换采样]：
+  $$
+  p(\omega)=\frac{1}{\text{圆面总立体角}}=\frac{1}{4\pi}
+  \\ \therefore\int_{sphere} \frac{1}{4\pi} \text{d}\omega=1
+  $$
+  将dω转换到单位俯仰角和方位角：
+  $$
+  \int_{sphere} \frac{1}{4\pi} \text{d}\omega=1
+  \\ \therefore \int_{sphere} \frac{\sin\theta}{4\pi} \text{d}\theta \text{d}\phi=1
+  \\ \therefore p(\theta,\phi)=\frac{\sin\theta}{4\pi}
+  $$
+  根据联合概率密度，计算边缘概率密度：
+  $$
+  p_\theta(\theta,\phi)=\int_0^{2\pi}\frac{\sin\theta}{4\pi}\text{d}\phi=\frac{\sin\theta}{2}
+  \\ p_\phi(\theta,\phi)=\int_0^{\pi}\frac{\sin\theta}{4\pi}\text{d}\theta=\frac{1}{2\pi}
+  $$
+  对边缘概率密度进行积分，得到边缘累积分布CDF：
+  $$
+  F_\theta(\theta,\phi)=\int_0^\theta p_\theta(\theta,\phi) \text{d}\theta=\frac{1-\cos\theta}{2}
+  \\ F_\phi(\theta,\phi)=\int_0^\phi p_\phi(\theta,\phi) \text{d}\phi =\frac{\phi}{2\pi}
+  $$
+  计算反函数：
+  $$
+  F^{-1}_\theta(\theta,\phi)=\cos^{-1}(2\theta -1)=\arccos(2\theta-1)
+  \\ F^{-1}_\phi(\theta,\phi)=2\pi \phi
+  $$
+  可视化如下：
+
+  <img src="https://cdn.jsdelivr.net/gh/shuaigougou5545/blog-image/img/202405211256854.png" alt="均匀球面采样" style="zoom:20%;" />
+
+  要想求均匀半球面，上述推导中PDF=1/(2𝜋)，且对应积分区域范围砍半即可，推导过程略，结果为：
+  $$
+  \theta':F^{-1}_\theta(u)=\arccos(1-u)
+  \\ \phi':F^{-1}_\phi(v)=2\pi v
+  $$
+
+```cpp
+参考博客中涉及圆环(圆)、阿基米德理论(球)进行推导，个人觉得直接用逆变换采样推导来的直观简单
+```
 
 #### （5）余弦加权的半球采样
 
+余弦加权的半球采样：一种特殊的球面采样方式，基于朗伯余弦定理，即渲染方程中的cosθ项。由于这种方法会使采样点集中在极点附近，因此它不属于均匀分布，需要单独讨论。
+
+- 推导：我们假设PDF与函数f(x)成正比关系，函数是cosθ，即PDF = c · cosθ，其中c为常数，根据PDF的积分为1求得c：
+  $$
+  \int_{hemisphere} c\cdot \cos\theta \ \text{d}\omega=1
+  \\ \int^{2\pi}_{0}\int^{\pi/2}_0 c \sin\theta\cos\theta \ \text{d}\theta \text{d}\phi=1
+  \\ \therefore c = \frac{1}{\pi}
+  $$
+  概率密度：
+  $$
+  \\ \therefore p(\omega)=\frac{\cos\theta}{\pi}
+  \\ \therefore p(\theta,\phi)=\frac{\sin\theta \cos\theta}{\pi}
+  $$
+  利用逆变换采样，具体步骤略～，得到如下：
+  $$
+  F^{-1}_\theta(\theta,\phi)=\frac{\arccos(1-2\theta)}{2}
+  \\ F^{-1}_\phi(\theta,\phi)=2\pi\phi
+  $$
+  代码如下：
+
+  ```cpp
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_real_distribution<> rng(0.0, 1.0);
+  for (int t = 0; t < sample_side; t++) {
+      for (int p = 0; p < sample_side; p++) {
+          double samplex = (t + rng(gen)) / sample_side;
+          double sampley = (p + rng(gen)) / sample_side;
+          
+          double theta = 0.5f * acos(1 - 2*samplex); 
+          double phi =  2 * M_PI * sampley; 
+          Vec3f wi = Vec3f(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta));
+          float pdf = wi.z / PI; // p(ω)
+          
+          samlpeList.directions.push_back(wi);
+          samlpeList.PDFs.push_back(pdf);
+      }
+  }
+  ```
+
+  <img src="https://cdn.jsdelivr.net/gh/shuaigougou5545/blog-image/img/202405211325491.png" alt="余弦加权的半球采样" style="zoom:20%;" />
+
+- 算法的特殊之处：当转动图像，从上向下看，可以发现这些点的投影似乎是均匀的 → 将点从球面投影到圆面上，在圆面上均匀分布 → 我们是否可以先生成均匀的圆面采样，再投影到球面之上呢？
+
+  球面上采样点的θ选择，将θ投影到圆面上，得到对应的半径r：
+  $$
+  F^{-1}_\theta(\theta,\phi)=\frac{\arccos(1-2\theta)}{2}
+  \\r_{projection}=\sin(\frac{\arccos(1-2\theta)}{2})
+  \\ \because F_r^{-1}(r,\theta)= \sqrt{r}
+  $$
+  会发现投影的半径，和均匀采样圆面时的半径，值是一致的
+
 #### （6）GGX采样
+
+#### （7）低差异序列
+
+低差异序列(low discrepancy sequences)：用于解决随机采样时采样点分布较为杂乱的问题。如下图，右侧的随机样本更为均匀，我们认为质量更高
+
+<img src="https://cdn.jsdelivr.net/gh/shuaigougou5545/blog-image/img/202405211757398.png" alt="截屏2024-05-21 17.57.17" style="zoom:33%;" />
+
+```
+在此不讨论Discrepancy的定义，其大体描述了任意区域内实际样本数与应有样本数之间的差异，这种差异反映着样本在不同区域内的聚集程度
+```
+
+常见的低差异序列：
+
+- Halton序列
+- Harmmersley序列
+- Sobol序列
+- Stratified序列
+
+<img src="https://cdn.jsdelivr.net/gh/shuaigougou5545/blog-image/img/202405211802209.png" alt="截屏2024-05-21 18.02.40" style="zoom:35%;" />
+
+**Harmmersley序列**
+
+- 生成方法
+
+  结合了均匀分布和Van der Corput序列，通过在一个维度上使用均匀分布，其他维度使用Van der Corput序列
+
+- Van der Corput序列
+
+  通过基数b进行数字反转生成的低差异序列，其中基数b用于确定反转过程所用的进制数，b常常选择质数，比如2(二进制)、3(三进制)、5(五进制)
+
+  假设b=2，具体步骤：(1)将整数n转换为2进制表示 (2)将2进制表示的数字反转 (3)再次转换回十进制小数
+
+  [比如 1 → 0001 → 1000 → 0.5；2 → 0010 → 0100 → 0.25；3 → 0011 → 1100 → 0.75 ...]
+
+  ```python
+  # base = 2 -> 二进制
+  def van_der_corput(bits : int) -> float:
+    # 分治算法 - 按位反转一个无符号32位整数
+    bits = (bits >> 16) | (bits << 16)
+    bits = ((bits & 0xFF00FF00) >> 8) | ((bits & 0x00FF00FF) << 8)
+    bits = ((bits & 0xF0F0F0F0) >> 4) | ((bits & 0x0F0F0F0F) << 4)
+    bits = ((bits & 0xCCCCCCCC) >> 2) | ((bits & 0x33333333) << 2)
+    bits = ((bits & 0xAAAAAAAA) >> 1) | ((bits & 0x55555555) << 1)
+    return float(bits) * 2.3283064365386963e-10  # 除以2^32,将32位整数转换成0~1浮点数
+  ```
+
+- 均匀球面采样 + Harmmersley序列
+
+  ```python
+  # base = 2 -> 二进制
+  def van_der_corput(bits : int) -> float:
+      # 分治算法 - 按位反转一个无符号32位整数
+      bits = (bits >> 16) | (bits << 16)
+      bits = ((bits & 0xFF00FF00) >> 8) | ((bits & 0x00FF00FF) << 8)
+      bits = ((bits & 0xF0F0F0F0) >> 4) | ((bits & 0x0F0F0F0F) << 4)
+      bits = ((bits & 0xCCCCCCCC) >> 2) | ((bits & 0x33333333) << 2)
+      bits = ((bits & 0xAAAAAAAA) >> 1) | ((bits & 0x55555555) << 1)
+      return float(bits) * 2.3283064365386963e-10  # 除以2^32,将32位整数转换成0~1浮点数
+  
+  def harmmersley(i : int, N : int) -> tuple[float, float]:
+      x = float(i) / float(N) 
+      y = van_der_corput(i)
+      return x, y
+  
+  def harmmersley_uniform_sphere_sampling(R, num_samples):
+      # 均匀球面采样 + 低差异序列
+      x_list = []
+      y_list = []
+      z_list = []
+      for index in range(num_samples):
+          random_1, random_2 = harmmersley(index, num_samples)
+          random_theta = math.acos(2 * random_1 - 1) # acos(2θ-1)
+          random_phi = random_2 * math.pi * 2 # 2𝜋𝜑
+          x = math.sin(random_theta) * math.cos(random_phi) * R
+          y = math.sin(random_theta) * math.sin(random_phi) * R
+          z = math.cos(random_theta) * R
+          x_list.append(x)
+          y_list.append(y)
+          z_list.append(z)
+      return x_list, y_list, z_list
+  ```
+
+  <img src="https://cdn.jsdelivr.net/gh/shuaigougou5545/blog-image/img/202405212230233.png" alt="均匀球面采样_低差异序列" style="zoom:20%;" />
+
+**综上：低差异序列能对给定的整数索引生成均匀分布的小数，可以代替传统的伪随机数用于均匀采样**
