@@ -331,7 +331,7 @@ PDF概率密度函数、CDF累积密度函数等基础概念略～
 
   <img src="https://cdn.jsdelivr.net/gh/shuaigougou5545/blog-image/img/202405211325491.png" alt="余弦加权的半球采样" style="zoom:20%;" />
 
-- 算法的特殊之处：当转动图像，从上向下看，可以发现这些点的投影似乎是均匀的 → 将点从球面投影到圆面上，在圆面上均匀分布 → 我们是否可以先生成均匀的圆面采样，再投影到球面之上呢？
+- ※算法的特殊之处：当转动图像，从上向下看，可以发现这些点的投影似乎是均匀的 → 将点从球面投影到圆面上，在圆面上均匀分布 → 我们是否可以先生成均匀的圆面采样，再投影到球面之上呢？
 
   球面上采样点的θ选择，将θ投影到圆面上，得到对应的半径r：
   $$
@@ -342,6 +342,106 @@ PDF概率密度函数、CDF累积密度函数等基础概念略～
   会发现投影的半径，和均匀采样圆面时的半径，值是一致的
 
 #### （6）GGX采样
+
+GGX采样
+
+- 如何设计PDF？
+
+  Microfacet Specular BRDF + cosine项为被积函数，即为光照传输部分，如下：
+  $$
+  f_r(i,o,h)\cos\theta
+  $$
+  需要设计一个类似于这个的采样PDF，GGX采样进行如下设计，这里借助了NDF的性质：
+  $$
+  pdf_m(\textbf{m})=D(\textbf{m})(\textbf{m}\cdot \textbf{n})
+  \\ \because \int D(\textbf{m})(\textbf{m}\cdot \textbf{n})\text{d}\omega_h=1
+  $$
+  其中NDF项使用GGX法线分布：{式子中的m即为半程向量，即微表面的法线朝向}
+  $$
+  D_{ggx}(m)=\frac{\alpha^2}{\pi ((m\cdot n)^2 (\alpha^2-1) + 1)^2}
+  $$
+  GGX法线分布中往往假设法线n为(0,0,1)，半程向量m用θ/𝜑表示：
+  $$
+  \textbf{n}=(0,0,1)
+  \\ \textbf{m}=(\sin\theta\cos\phi, \sin\theta\sin\phi,\cos\theta)
+  \\ \therefore(\textbf{m}\cdot \textbf{n})=\cos\theta
+  $$
+  找到了PDF，即可通过逆采样法来构造对应采样点
+
+- [题外话]NDF的理解
+
+  > NDF的相关理解：https://www.reedbeta.com/blog/hows-the-ndf-really-defined/
+
+  NDF(D项)并不是在半球上积分为1，而需额外增加一个cos项，即m点乘n，是因为：
+  $$
+  \text{d}A_h=D(h)\text{d}\omega_h \cdot A
+  \\ \frac{1}{A}\int (n\cdot h)\text{d}A_h=\int D(h)(n\cdot h)\text{d}\omega
+  $$
+  微观面积dA<sub>h</sub>通过投影(n·h)被投影到宏观表面A之上，所以D(h)不单单是关于单位立体角的概率分布，而且还关于面积
+
+- 设计采样点[逆变换采样法]
+
+  为了从已知PDF<sub>m</sub>(m)构造随机采样方向m，通常将立体角转换成球面坐标系θ和𝜑来处理，即PDF<sub>m</sub>(θ,𝜑)
+
+  在这个过程中，需要一个雅可比行列式(Jacobian)，因为PDF<sub>m</sub>(m)的单位是逆立体角(sr<sup>-1</sup>)，以保证转换是正确的
+  $$
+  pdf_m(\theta,\phi)=pdf_m(m) \cdot \frac{\text{d}m}{\text{d}\theta\  \text{d}\phi}
+  \\=\frac{\alpha^2\cos\theta}{\pi (\cos^2\theta(\alpha^2-1) + 1)^2} \sin\theta
+  $$
+  很明显PDF与𝜑无关，可以认为𝜑可以在[0,2𝜋]上均匀生成：
+  $$
+  \phi=2\pi\xi_2
+  $$
+  对于θ来说，需要走逆变换采样中那一套PDF→CDF→CDF<sup>-1</sup>转换：
+  $$
+  CDF(\theta)=\int_0^\theta pdf_m(\theta',\phi)\text{d}\theta'
+  $$
+  令x=tanθ能简化积分的推导：
+
+  <img src="https://cdn.jsdelivr.net/gh/shuaigougou5545/blog-image/img/202405221318508.png" alt="截屏2024-05-22 13.18.14" style="zoom:50%;" />
+
+  因此得到采样点：
+  $$
+  \theta=\arctan (\sqrt{\frac{\xi_1}{1-\xi_1}})
+  \\ \phi = 2\pi \xi_2
+  $$
+
+- 蒙特卡洛积分：
+
+  在上述已经推导出PDF<sub>m</sub>，接着需要计算蒙特卡洛积分中的每一项：
+  $$
+  \frac{1}{N}\sum\frac{f_r(i,o,h)(i,n)}{pdf_i(i)}
+  $$
+  因为之前在m上积分，可以通过镜面反射关系推导出入射方向i：
+  $$
+  \textbf{i}=2(\textbf{m}\cdot \textbf{o})\textbf{m}-\textbf{o}
+  $$
+  还需要将PDF<sub>m</sub>转换为PDF<sub>i</sub>，此处需要一个Jacobian项进行转换：
+  $$
+  pdf_i(i)=pdf_m(m)\cdot ||\frac{\partial\omega_m}{\partial\omega_i}||
+  $$
+  对上述i/m/o之间的关系左右两边同时微分进行推导[涉及微分运算法则]：
+  $$
+  \text{d}\textbf{i}=4(\textbf{i}\cdot \textbf{m})\text{d}\textbf{m}
+  \\ ||\frac{\partial\omega_m}{\partial\omega_i}||=\frac{1}{4(\textbf{i}\cdot \textbf{m})}
+  $$
+  最终的权重为：这里的权重是指蒙特卡洛积分的每一项，即f(xi)/p(xi)
+  $$
+  weight(\mathbf{i}) = \frac{F(\mathbf{i}, \mathbf{o}, \mathbf{h}) G(\mathbf{i}, \mathbf{o}, \mathbf{h}) (\mathbf{m} \cdot \mathbf{o})}{(\mathbf{m} \cdot \mathbf{n}) (\mathbf{n} \cdot \mathbf{o})}
+  $$
+
+- TBN：
+
+  在通过逆变换采样法推导采样微表面法线向量m时，通常假设法线向量n为(0,0,1)，因此推导出的半程向量m是在这个假设下计算的相对值。当有更具体的法线向量n时，需要通过 TBN 矩阵将这个相对的半程向量m转换到实际的世界坐标系中。可以理解为：局部空间 → TBN空间
+
+  ```cpp
+  glm::vec3 up = std::abs(N.z) < 0.999 ? glm::vec3(0.0f, 0.0f, 1.0f) : glm::vec3(1.0f, 0.0f, 0.0f);
+  glm::vec3 T = glm::normalize(glm::cross(up, N));
+  glm::vec3 B = glm::cross(N, T); 
+  
+  return glm::normalize(T * H.x + B * H.y + N * H.z); 
+  ```
+
 
 #### （7）低差异序列
 
@@ -427,3 +527,7 @@ PDF概率密度函数、CDF累积密度函数等基础概念略～
   <img src="https://cdn.jsdelivr.net/gh/shuaigougou5545/blog-image/img/202405212230233.png" alt="均匀球面采样_低差异序列" style="zoom:20%;" />
 
 **综上：低差异序列能对给定的整数索引生成均匀分布的小数，可以代替传统的伪随机数用于均匀采样**
+
+-----
+
+总结：<u>蒙特卡洛积分</u>告诉我们可以通过采样和概率密度函数 (PDF) 来计算定积分；<u>重要性采样</u>告诉我们如何选择最优的采样方式/PDF；<u>逆变换采样</u>告诉我们如何在已知 PDF 的前提下生成采样点 → 这一套组合拳就能推理图形学中大部分的采样方式
