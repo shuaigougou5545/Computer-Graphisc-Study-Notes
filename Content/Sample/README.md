@@ -4,7 +4,7 @@
 
 概率密度函数(Probability Density Function, PDF)：描述连续随机变量在某个取值范围内的概率分布的函数 - 某个位置处出现的概率，通常用f(x)、p(x)或pdf表示
 
-<img src="https://latex.codecogs.com/gif.latex? \int f(x)\text{d}x=1" />
+<img src="./media/pdf.png" alt="pdf" style="zoom:3%;" />
 
 累积分布函数(Cumulative Distribution Function, CDF)：描述随机变量小于等于某个值的概率的函数 - 对PDF的累积，通常用F(x)或cdf表示
 
