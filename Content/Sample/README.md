@@ -3,12 +3,13 @@
 #### （1）基本概念
 
 概率密度函数(Probability Density Function, PDF)：描述连续随机变量在某个取值范围内的概率分布的函数 - 某个位置处出现的概率，通常用f(x)、p(x)或pdf表示
-
-<img src="./media/pdf.png" alt="pdf" style="zoom:3%;" />
-
+$$
+\int f(x)\text{d}x=1
+$$
 累积分布函数(Cumulative Distribution Function, CDF)：描述随机变量小于等于某个值的概率的函数 - 对PDF的累积，通常用F(x)或cdf表示
-
-<img src="https://latex.codecogs.com/svg.latex?F(x)=\int^x_{-\infty}f(t)\text{d}t=P(X \le x) "/>
+$$
+F(x)=\int^x_{-\infty}f(t)\text{d}t=P(X \le x)
+$$
 
 #### （2）重要性采样
 
@@ -17,38 +18,39 @@
 - 期望的等价转换
 
   当计算某个函数的期望时，假设变量x符合某个分布p(x)，但分布p(x)往往难以直接采样；我们可以选取另一个容易进行采样的分布q(x)：
-
-  <img src="https://latex.codecogs.com/svg.latex? \begin{array}{c}
+  $$
+   \begin{array}{c}
   E_{x\sim p}[f(x)]=\int_x f(x)p(x)\text{d}x=\int_x f(x)\frac{p(x)}{q(x)}q(x)\text{d}x=E_{x\sim q}[f(x)\frac{p(x)}{q(x)}]
   \\ \therefore E_{x\sim p}[f(x)]=E_{x\sim q}[f(x)\frac{p(x)}{q(x)}]
-  \end{array} "/>
-
+  \end{array} 
+  $$
   这一步骤说明在不同分布下采样，通过加权可以得到相同的期望，权值/重要性即为"p(x)/q(x)"
 
 - 蒙特卡洛估计
 
   通过从q(x)中采样N个点，期望值的蒙特卡洛估计为：
-
-  <img src="https://latex.codecogs.com/svg.latex? E_{x\sim p}[f(x)]\approx \frac{1}{N}\sum_{i=1}^N \frac{p(x_i)}{q(x_i)}f(x_i) "/>
-
+  $$
+   E_{x\sim p}[f(x)]\approx \frac{1}{N}\sum_{i=1}^N \frac{p(x_i)}{q(x_i)}f(x_i)
+  $$
   🏆**关键在于不等式≈在什么情况下接近于等式！**⇒ 为了确保估计的准确性，我们需要最小化估计值的方差：
-
-  <img src="https://latex.codecogs.com/svg.latex? \min \ Var(\frac{f(x)p(x)}{q(x)}) "/>
-
+  $$
+   \min \ Var(\frac{f(x)p(x)}{q(x)})
+  $$
   为什么方差较小时，采样的估计值越接近真实的期望值？有两种理解方式：(1)当方差较小时，意味着估计值在不同的样本集上波动较小，因此更接近其期望值 (2)利用切比雪夫不等式证明：
-
-  <img src="https://latex.codecogs.com/svg.latex? \begin{array}{c}
+  $$
+  \begin{array}{c}
   \text{Pr}(|X-\mu|\ge k\sigma)\le \frac{1}{k^2}
   \\ \text{Pr}(|\hat{I}_{IS}-I|\ge k\sqrt{\frac{Var(h(x))}{N}})\le \frac{1}{k^2}
-  \end{array} "/>
-
+  \end{array} 
+  $$
   当N增加，或者方差减少，估计值越接近于期望值
 
 - 最小化方差
 
   我们知道常数的方差为0，当q(x)与|f(x)p(x)|成正比关系时，方差最小
-  
-  <img src="https://latex.codecogs.com/svg.latex? \\ q(x)\propto |f(x)p(x)| \ \ \ \rightarrow\ \ \ \min Var(c) "/>
+  $$
+  q(x)\propto |f(x)p(x)| \ \ \ \rightarrow\ \ \ \min Var(c)
+  $$
 
 总结：重要性采样阐述了如何选择合适的采样方式，使得估计期望值更加准确
 
@@ -57,19 +59,19 @@
 - 求解定积分
 
   在实际应用中，我们往往需要求解函数的定积分(蒙特卡洛积分)：
-
-  <img src="https://latex.codecogs.com/svg.latex? \int f(x)dx=E_{x\sim p}[\frac{f(x)}{p(x)}]\approx \frac{1}{N}\sum_{i=1}^N\frac{f(x_i)}{q(x_i)} "/>
-
+  $$
+   \int f(x)dx=E_{x\sim p}[\frac{f(x)}{p(x)}]\approx \frac{1}{N}\sum_{i=1}^N\frac{f(x_i)}{q(x_i)}
+  $$
   此时，我们只需要选择合适的分布q(x)，使得q(x)与|f(x)|成正比
 
 - 通过期望证明
-  
-  <img src="https://latex.codecogs.com/svg.latex? \begin{array}{c}
+  $$
+  \begin{array}{c}
   E(\frac{f(x)}{p(x)})=\int\frac{f(x)}{p(x)}p(x)\text{d}x=\int f(x)\text{d}x
   \\ \because E(\frac{f(x)}{p(x)})\approx \frac{1}{N} \sum_{i=1}^n \frac{f(x_i)}
   {p(x_i)} \\ \therefore \int f(x)\text{d}x\approx \frac{1}{N} \sum_{i=1}^n \frac{f(x_i)}
-  {p(x_i)}\end{array} "/>
-  
+  {p(x_i)}\end{array}
+  $$
   在上述过程中，通过选择另一个容易进行采样的分布q(x)，假设了q(x)与|p(x)|存在正比关系，即可将q(x)等价替换上述过程中的p(x)
   
 - 蒙特卡洛积分的理解
@@ -85,35 +87,35 @@
 - 证明过程：
 
   我们假设变量u在[0,1]上均匀线性随机分布，通过映射函数F<sup>-1</sup>得到新的变量X，即
-
-  <img src="https://latex.codecogs.com/svg.latex? \begin{array}{c}
+  $$
+   \begin{array}{c}
   u\sim U(0,1)
   \\ X=F^{-1}(u)
   \\ \text{}\ F(x)=\int_{-\infty}^x f(t)\text{d}t
-  \end{array} "/>
-
+  \end{array} 
+  $$
   我们需要验证新变量X与原始变量x具有相同的分布，这可以通过累积分布函数(CDF)进行推导，新变量X的累积分布函数为：
-
-  <img src="https://latex.codecogs.com/svg.latex? \begin{array}{c}
+  $$
+  \begin{array}{c}
   F_X(x)=P(X\le x)
   \\ = P(F^{-1}(u)\le x)
-  \end{array} "/>
-
+  \end{array} 
+  $$
   利用累积分布函数F的单调递增特性(反函数F<sup>-1</sup>也必定单调递增)，因此：
-
-  <img src="https://latex.codecogs.com/svg.latex? =P(u\le F(x)) "/>
-
+  $$
+   =P(u\le F(x))
+  $$
   又利用u的均匀分布性质，u的累积分布函数为y=x，有：
-
-  <img src="https://latex.codecogs.com/svg.latex? \because P(u\le u)=u "/>
-
+  $$
+  \because P(u\le u)=u 
+  $$
   所以：
-
-  <img src="https://latex.codecogs.com/svg.latex? \begin{array}{c}
+  $$
+  \begin{array}{c}
   =P(u\le F(x))=F(x)
   \\ \therefore F_X(x)=F(x)
-  \end{array} "/>
-
+  \end{array}
+  $$
   综上，证明了随机变量X=F<sup>-1</sup>(u)的累积分布函数F<sub>X</sub>(x)与目标累积分布函数F(x)一致。因此，利用逆变换采样生成的随机变量X确实服从目标概率分布f(x)
 
 - 使用步骤：
@@ -121,14 +123,15 @@
   1. 已知概率密度函数(PDF) → p(x) 或者 f(x)
 
   2. 求累积分布函数(CDF) → F(x) 
-  
-     <img src="https://latex.codecogs.com/svg.latex? F(x)=\int_{-\infty}^x f(t)\text{d}t "/>
-  
-3. 求累积分布函数的反函数 → F<sup>-1</sup>(u)
-  
-4. 生成均匀分布的随机数 → u ~ U(0, 1)
-  
-5. 通过逆函数映射生成样本 → X = F<sup>-1</sup>(u)
+     $$
+     F(x)=\int_{-\infty}^x f(t)\text{d}t
+     $$
+
+  3. 求累积分布函数的反函数 → F<sup>-1</sup>(u)
+
+  4. 生成均匀分布的随机数 → u ~ U(0, 1)
+
+  5. 通过逆函数映射生成样本 → X = F<sup>-1</sup>(u)
 
 综上所述：逆变换采样是一种非常通用的随机样本生成算法。在已知PDF或CDF的情况下，通过线性随机数和逆函数映射的方法，可以生成指定分布的随机样本。
 
